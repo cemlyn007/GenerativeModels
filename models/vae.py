@@ -10,6 +10,12 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import imageio
 
+import sys
+
+print(sys.path)
+
+from utils.module_helpers import PrintTensors
+
 
 def show(img):
     if torch.cuda.is_available():
@@ -39,30 +45,39 @@ def denorm_for_sigmoid(x):
     return x
 
 
-class VAE(nn.Module):
+class LinearVAE(nn.Module):
     def __init__(self, latent_dim):
-        super(VAE, self).__init__()
+        super(LinearVAE, self).__init__()
 
         # Encoding Material
         self.encoder = Sequential(
+            PrintTensors("Input"),
             Linear(784, 980),
             ReLU(inplace=True),
+            PrintTensors("1"),
             Linear(980, 1024),
             ReLU(inplace=True),
+            PrintTensors("2"),
             Linear(1024, 1280),
             ReLU(inplace=True),
+            PrintTensors("Encoded"),
         )
+
         self.en_mu_lin = Linear(1280, latent_dim)
         self.en_logvar_lin = Linear(1280, latent_dim)
 
         # Decoding Material
         self.decoder = Sequential(
+            PrintTensors("Input"),
             Linear(latent_dim, 1280),
             ReLU(inplace=True),
+            PrintTensors("1"),
             Linear(1280, 1024),
             ReLU(inplace=True),
+            PrintTensors("2"),
             Linear(1024, 784),
             Sigmoid(),
+            PrintTensors("Output"),
         )
 
     def encode(self, x):
@@ -83,7 +98,72 @@ class VAE(nn.Module):
         return x, mu, logvar
 
 
+class ConvVAE(nn.Module):
+
+    def __init__(self, amp=1):
+        super(ConvVAE, self).__init__()
+
+        # Encoding Material
+        self.encoder = Sequential(
+            PrintTensors("Input"),
+            nn.Conv2d(in_channels=1, out_channels=256, kernel_size=3, stride=2),
+            ReLU(inplace=True),
+            PrintTensors("1"),
+            nn.Conv2d(in_channels=256, out_channels=128, kernel_size=3, stride=2),
+            ReLU(inplace=True),
+            PrintTensors("2"),
+            nn.Conv2d(in_channels=128, out_channels=96, kernel_size=3, stride=2),
+            ReLU(inplace=True),
+            PrintTensors("3"),
+            nn.Conv2d(in_channels=96, out_channels=64, kernel_size=2, stride=1),
+            ReLU(inplace=True),
+            PrintTensors("Encoded"),
+        )
+
+        self.en_mu_lin = Linear(64, latent_dim)
+        self.en_logvar_lin = Linear(64, latent_dim)
+
+        # Decoding Material
+        self.decoder = Sequential(
+            PrintTensors("Input"),
+            nn.ConvTranspose2d(in_channels=latent_dim, out_channels=256, kernel_size=2, stride=1),
+            ReLU(inplace=True),
+            PrintTensors("1"),
+            nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=3, stride=2),
+            ReLU(inplace=True),
+            PrintTensors("2"),
+            nn.ConvTranspose2d(in_channels=128, out_channels=96, kernel_size=4, stride=2),
+            ReLU(inplace=True),
+            PrintTensors("3"),
+            nn.ConvTranspose2d(in_channels=96, out_channels=64, kernel_size=4, stride=2),
+            ReLU(inplace=True),
+            PrintTensors("4"),
+            nn.ConvTranspose2d(in_channels=64, out_channels=1, kernel_size=3, stride=1),
+            Sigmoid(),
+            PrintTensors("Output"),
+        )
+
+    def encode(self, x):
+        x = self.encoder(x).flatten(start_dim=1)
+        return self.en_mu_lin(x), self.en_logvar_lin(x)
+
+    def reparametrize(self, mu, logvar):
+        return mu + torch.exp(logvar * 0.5) * torch.randn_like(logvar)
+
+    def decode(self, z):
+        x = self.decoder(z)
+        return x.view((-1, 1, 28, 28))
+
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparametrize(mu, logvar).unsqueeze(dim=-1).unsqueeze(dim=-1)
+        x = self.decode(z)
+        return x, mu, logvar
+
+
 if __name__ == "__main__":
+    from torch.nn import Conv2d, ConvTranspose3d, Linear, ReLU, Sequential, Sigmoid
+    from torch.nn.modules.pooling import MaxPool2d
 
     # device selection
     GPU = True
@@ -106,7 +186,7 @@ if __name__ == "__main__":
     ### Choose the number of epochs, the learning rate and the batch size
     num_epochs = 20
     learning_rate = 5e-5  # 1e-3
-    batch_size = 64
+    batch_size = 512
     ### Choose a value for the size of the latent space
     latent_dim = 10
 
@@ -139,11 +219,7 @@ if __name__ == "__main__":
 
     save_image(fixed_input, '../CW_VAE/MNIST/image_original.png')
 
-    from torch.nn import Conv2d, ConvTranspose3d, Linear, ReLU, Sequential, Sigmoid
-    from torch.nn.modules.pooling import MaxPool2d
-    from torch.distributions.normal import Normal
-
-    model = VAE(latent_dim).to(device)
+    model = ConvVAE(amp=1).to(device)
     params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Total number of parameters is: {}".format(params))
     print(model)

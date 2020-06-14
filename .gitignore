@@ -129,3 +129,5 @@ dmypy.json
 .pyre/
 /CW_VAE/
 /data/
+/CW_DCGAN/
+/datasets/

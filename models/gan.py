@@ -93,6 +93,8 @@ def weights_init(m):
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    import imageio
 
     # device selection
     GPU = True
@@ -232,62 +234,58 @@ if __name__ == "__main__":
             train_loss_G += errG.item()
             optimizerG.step()
 
-            print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f', errD.item(), errG.item(),
-                  D_x, D_G_z1, D_G_z2)
-            #               % (epoch, num_epochs, i, len(loader_train),
+            print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+                  % (epoch, num_epochs, i, len(loader_train),
+                     errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
-            if epoch == 0:
-                save_image(denorm(real_cpu.cpu()).float(), '../CW_DCGAN/real_samples.png')
+        if epoch == 0:
+            save_image(denorm(real_cpu.cpu()).float(), '../CW_DCGAN/real_samples.png')
 
-            fake = model_G(fixed_noise)
-            save_image(denorm(fake.cpu()).float(), '../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch)
-            train_losses_D.append(train_loss_D / len(loader_train))
-            train_losses_G.append(train_loss_G / len(loader_train))
+        fake = model_G(fixed_noise)
+        save_image(denorm(fake.cpu()).float(), '../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch)
+        train_losses_D.append(train_loss_D / len(loader_train))
+        train_losses_G.append(train_loss_G / len(loader_train))
 
-            import imageio
+    images = []
+    for epoch in range(num_epochs):
+        images.append(imageio.imread('../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch))
+    imageio.mimsave('/GAN_movie.gif', images)
 
-            images = []
-            for epoch in range(num_epochs):
-                images.append(imageio.imread('../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch))
-            imageio.mimsave('/GAN_movie.gif', images)
+    # save losses and models
+    torch.save(model_G.state_dict(), '../CW_DCGAN/DCGAN_model_G.pth')
+    torch.save(model_D.state_dict(), '../CW_DCGAN/DCGAN_model_D.pth')
 
-            # save losses and models
-            torch.save(model_G.state_dict(), '../CW_DCGAN/DCGAN_model_G.pth')
-            torch.save(model_D.state_dict(), '../CW_DCGAN/DCGAN_model_D.pth')
+    it = iter(loader_test)
+    sample_inputs, _ = next(it)
+    fixed_input = sample_inputs[0:32, :, :, :]
 
-            it = iter(loader_test)
-            sample_inputs, _ = next(it)
-            fixed_input = sample_inputs[0:32, :, :, :]
+    # visualize the original images of the last batch of the test set
+    img = make_grid(denorm(fixed_input), nrow=4, padding=2, normalize=False,
+                    range=None, scale_each=False, pad_value=0)
 
-            # visualize the original images of the last batch of the test set
-            img = make_grid(denorm(fixed_input), nrow=4, padding=2, normalize=False,
-                            range=None, scale_each=False, pad_value=0)
+    fig = plt.figure()
+    fig.set_size_inches(8, 8)
+    show(img)
 
-            fig = plt.figure()
-            fig.set_size_inches(8, 8)
-            show(img)
+    # load the model
+    model_G.load_state_dict(torch.load('../CW_DCGAN/DCGAN_model_G.pth'))
+    input_noise = torch.randn(batch_size, latent_vector_size, 1, 1, device=device)
 
-            # load the model
-            model_G.load_state_dict(torch.load('../CW_DCGAN/DCGAN_model_G.pth'))
-            input_noise = torch.randn(batch_size, latent_vector_size, 1, 1, device=device)
+    with torch.no_grad():
+        fig = plt.figure()
+    fig.set_size_inches(12, 24)
+    # visualize the generated images
+    generated = model_G(input_noise).cpu()
+    generated = make_grid(denorm(generated)[:32], nrow=8, padding=2, normalize=False,
+                          range=None, scale_each=False, pad_value=0)
+    show(generated)
 
-            with torch.no_grad():
-                fig = plt.figure()
-            fig.set_size_inches(12, 24)
-            # visualize the generated images
-            generated = model_G(input_noise).cpu()
-            generated = make_grid(denorm(generated)[:32], nrow=8, padding=2, normalize=False,
-                                  range=None, scale_each=False, pad_value=0)
-            show(generated)
-
-            import matplotlib.pyplot as plt
-
-            fig = plt.figure()
-            fig.set_size_inches(12, 9)
-            plt.plot(list(range(0, np.array(train_losses_D).shape[0])), np.array(train_losses_D), label='loss_D')
-            plt.plot(list(range(0, np.array(train_losses_G).shape[0])), np.array(train_losses_G), label='loss_G')
-            plt.legend()
-            plt.title('Train Losses')
-            plt.xlabel('Number of Epochs')
-            plt.ylabel('Loss')
-            plt.show()
+    fig = plt.figure()
+    fig.set_size_inches(12, 9)
+    plt.plot(list(range(0, np.array(train_losses_D).shape[0])), np.array(train_losses_D), label='loss_D')
+    plt.plot(list(range(0, np.array(train_losses_G).shape[0])), np.array(train_losses_G), label='loss_G')
+    plt.legend()
+    plt.title('Train Losses')
+    plt.xlabel('Number of Epochs')
+    plt.ylabel('Loss')
+    plt.show()

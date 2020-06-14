@@ -254,10 +254,10 @@ if __name__ == "__main__":
                  errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
         if epoch == 0:
-            save_image(denorm(real_cpu.cpu()).float(), './CW_DCGAN/real_samples.png')
+            save_image(denorm(real_cpu[:32].cpu()).float(), './CW_DCGAN/real_samples.png')
 
         fake = model_G(fixed_noise)
-        save_image(denorm(fake.cpu()).float(), './CW_DCGAN/fake_samples_epoch_%03d.png' % epoch)
+        save_image(denorm(fake.cpu()[:32]).float(), './CW_DCGAN/fake_samples_epoch_%03d.png' % epoch)
         train_losses_D.append(train_loss_D / len(loader_train))
         train_losses_G.append(train_loss_G / len(loader_train))
 

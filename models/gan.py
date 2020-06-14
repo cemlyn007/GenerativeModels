@@ -9,6 +9,8 @@ from torchvision.utils import save_image, make_grid
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
+from utils.module_helpers import PrintTensors
+
 
 def denorm(x, channels=None, w=None, h=None, resize=False):
     x = 0.5 * (x + 1)
@@ -32,17 +34,30 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
 
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(latent_vector_size, 256, 4, 1, 0, bias=False),
+            PrintTensors("Input"),
+            nn.ConvTranspose2d(latent_vector_size, 512, 4, 2, 0, bias=False),
+            nn.BatchNorm2d(512),
+            nn.ReLU(True),
+            PrintTensors("1"),
+            nn.ConvTranspose2d(512, 256, 4, 1, 0, bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(True),
-            nn.ConvTranspose2d(256, 128, 4, 2, 1, bias=False),
+            PrintTensors("2"),
+            nn.ConvTranspose2d(256, 128, 2, 2, 0, bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(True),
-            nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
+            PrintTensors("3"),
+            nn.ConvTranspose2d(128, 64, 3, 1, 0, bias=False),
             nn.BatchNorm2d(64),
             nn.ReLU(True),
-            nn.ConvTranspose2d(64, 3, 4, 2, 1, bias=False),
-            nn.Tanh()
+            PrintTensors("4"),
+            nn.ConvTranspose2d(64, 32, 2, 2, 0, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(True),
+            PrintTensors("5"),
+            nn.ConvTranspose2d(32, 3, 3, 1, 1, bias=False),
+            nn.Tanh(),
+            PrintTensors("Output"),
         )
 
     def decode(self, z):
@@ -110,12 +125,12 @@ if __name__ == "__main__":
     #     torch.backends.cudnn.deterministic = True
     torch.manual_seed(0)
 
-    if not os.path.exists('../CW_DCGAN'):
-        os.makedirs('../CW_DCGAN')
+    if not os.path.exists('./CW_DCGAN'):
+        os.makedirs('./CW_DCGAN')
 
     """### Data loading"""
 
-    batch_size = 64  # change that 256
+    batch_size = 512  # change that 256
     NUM_TRAIN = 49000
 
     transform = transforms.Compose([
@@ -123,7 +138,7 @@ if __name__ == "__main__":
         transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
     ])
 
-    data_dir = '../datasets'
+    data_dir = './datasets'
 
     cifar10_train = datasets.CIFAR10(data_dir, train=True, download=True,
                                      transform=transform)
@@ -142,7 +157,7 @@ if __name__ == "__main__":
 
     num_epochs = 100
     learning_rate = 0.0002
-    latent_vector_size = 100
+    latent_vector_size = 128
 
     model_G = Generator().to(device)
     if use_weights_init:
@@ -234,26 +249,26 @@ if __name__ == "__main__":
             train_loss_G += errG.item()
             optimizerG.step()
 
-            print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-                  % (epoch, num_epochs, i, len(loader_train),
-                     errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+              % (epoch, num_epochs, i, len(loader_train),
+                 errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
         if epoch == 0:
-            save_image(denorm(real_cpu.cpu()).float(), '../CW_DCGAN/real_samples.png')
+            save_image(denorm(real_cpu.cpu()).float(), './CW_DCGAN/real_samples.png')
 
         fake = model_G(fixed_noise)
-        save_image(denorm(fake.cpu()).float(), '../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch)
+        save_image(denorm(fake.cpu()).float(), './CW_DCGAN/fake_samples_epoch_%03d.png' % epoch)
         train_losses_D.append(train_loss_D / len(loader_train))
         train_losses_G.append(train_loss_G / len(loader_train))
 
     images = []
     for epoch in range(num_epochs):
-        images.append(imageio.imread('../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch))
+        images.append(imageio.imread('./CW_DCGAN/fake_samples_epoch_%03d.png' % epoch))
     imageio.mimsave('/GAN_movie.gif', images)
 
     # save losses and models
-    torch.save(model_G.state_dict(), '../CW_DCGAN/DCGAN_model_G.pth')
-    torch.save(model_D.state_dict(), '../CW_DCGAN/DCGAN_model_D.pth')
+    torch.save(model_G.state_dict(), './CW_DCGAN/DCGAN_model_G.pth')
+    torch.save(model_D.state_dict(), './CW_DCGAN/DCGAN_model_D.pth')
 
     it = iter(loader_test)
     sample_inputs, _ = next(it)
@@ -268,7 +283,7 @@ if __name__ == "__main__":
     show(img)
 
     # load the model
-    model_G.load_state_dict(torch.load('../CW_DCGAN/DCGAN_model_G.pth'))
+    model_G.load_state_dict(torch.load('./CW_DCGAN/DCGAN_model_G.pth'))
     input_noise = torch.randn(batch_size, latent_vector_size, 1, 1, device=device)
 
     with torch.no_grad():

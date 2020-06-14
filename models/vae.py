@@ -18,49 +18,6 @@ def show(img):
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
 
 
-# device selection
-GPU = True
-device_idx = 0
-if GPU:
-    device = torch.device("cuda:" + str(device_idx) if torch.cuda.is_available() else "cpu")
-else:
-    device = torch.device("cpu")
-print(device)
-
-# We set a random seed to ensure that your results are reproducible.
-if torch.cuda.is_available():
-    torch.backends.cudnn.deterministic = True
-torch.manual_seed(0)
-
-if not os.path.exists('../CW_VAE/MNIST'):
-    os.makedirs('../CW_VAE/MNIST')
-
-"""## Hyper-parameter selection"""
-
-# *CODE FOR PART 1.1 IN THIS CELL*
-
-### Choose the number of epochs, the learning rate and the batch size
-num_epochs = 20
-learning_rate = 5e-5  # 1e-3
-batch_size = 64
-### Choose a value for the size of the latent space
-latent_dim = 10
-
-###
-
-# Define here the any extra hyperparameters you used.
-beta = 2  # .75 WAS 0.5
-###
-
-# Modify this line if you need to do any input transformations (optional).
-transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.,), (1.,)),
-])
-
-
-# (0.5,), (0.5,)
-
 # Modify the denorm function in case you need to do any output transformation when visualizing your images
 def interpolate(z1, z2, num=11):
     Z = np.zeros((z1.shape[0], num))
@@ -82,37 +39,9 @@ def denorm_for_sigmoid(x):
     return x
 
 
-denorm = denorm_for_sigmoid
-
-"""## Data loading"""
-
-train_dat = datasets.MNIST(
-    "../data/", train=True, download=True, transform=transform
-)
-test_dat = datasets.MNIST("../data/", train=False, transform=transform)
-
-loader_train = DataLoader(train_dat, batch_size, shuffle=True)
-loader_test = DataLoader(test_dat, batch_size, shuffle=False)
-
-sample_inputs, _ = next(iter(loader_test))
-fixed_input = sample_inputs[:32, :, :, :]
-
-save_image(fixed_input, '../CW_VAE/MNIST/image_original.png')
-
-"""## Model Definition"""
-
-# *CODE FOR PART 1.1a IN THIS CELL*
-from torch.nn import Conv2d, ConvTranspose3d, Linear, ReLU, Sequential, Sigmoid
-from torch.nn.modules.pooling import MaxPool2d
-from torch.distributions.normal import Normal
-
-
 class VAE(nn.Module):
     def __init__(self, latent_dim):
         super(VAE, self).__init__()
-        #######################################################################
-        #                       ** START OF YOUR CODE **
-        #######################################################################
 
         # Encoding Material
         self.encoder = Sequential(
@@ -136,53 +65,83 @@ class VAE(nn.Module):
             Sigmoid(),
         )
 
-        #######################################################################
-        #                       ** END OF YOUR CODE **
-        #######################################################################
-
     def encode(self, x):
-        #######################################################################
-        #                       ** START OF YOUR CODE **
-        #######################################################################
         x = self.encoder(x.view((-1, 784)))
-        #######################################################################
-        #                       ** END OF YOUR CODE **
-        #######################################################################
         return self.en_mu_lin(x), self.en_logvar_lin(x)
 
     def reparametrize(self, mu, logvar):
-        #######################################################################
-        #                       ** START OF YOUR CODE **
-        #######################################################################
-        #######################################################################
-        #                       ** END OF YOUR CODE **
-        #######################################################################
         return mu + torch.exp(logvar * 0.5) * torch.randn_like(logvar)
 
     def decode(self, z):
-        #######################################################################
-        #                       ** START OF YOUR CODE **
-        #######################################################################
         x = self.decoder(z)
-        #######################################################################
-        #                       ** END OF YOUR CODE **
-        #######################################################################
         return x.view((-1, 1, 28, 28))
 
     def forward(self, x):
-        #######################################################################
-        #                       ** START OF YOUR CODE **
-        #######################################################################
         mu, logvar = self.encode(x)
         z = self.reparametrize(mu, logvar)
         x = self.decode(z)
-        #######################################################################
-        #                       ** END OF YOUR CODE **
-        #######################################################################
         return x, mu, logvar
 
 
 if __name__ == "__main__":
+
+    # device selection
+    GPU = True
+    device_idx = 0
+    if GPU:
+        device = torch.device("cuda:" + str(device_idx) if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device("cpu")
+    print(device)
+
+    torch.manual_seed(0)
+
+    if not os.path.exists('../CW_VAE/MNIST'):
+        os.makedirs('../CW_VAE/MNIST')
+
+    """## Hyper-parameter selection"""
+
+    # *CODE FOR PART 1.1 IN THIS CELL*
+
+    ### Choose the number of epochs, the learning rate and the batch size
+    num_epochs = 20
+    learning_rate = 5e-5  # 1e-3
+    batch_size = 64
+    ### Choose a value for the size of the latent space
+    latent_dim = 10
+
+    ###
+
+    # Define here the any extra hyperparameters you used.
+    beta = 2  # .75 WAS 0.5
+    ###
+
+    # Modify this line if you need to do any input transformations (optional).
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.,), (1.,)),
+    ])
+
+    denorm = denorm_for_sigmoid
+
+    """## Data loading"""
+
+    train_dat = datasets.MNIST(
+        "../data/", train=True, download=True, transform=transform
+    )
+    test_dat = datasets.MNIST("../data/", train=False, transform=transform)
+
+    loader_train = DataLoader(train_dat, batch_size, shuffle=True)
+    loader_test = DataLoader(test_dat, batch_size, shuffle=False)
+
+    sample_inputs, _ = next(iter(loader_test))
+    fixed_input = sample_inputs[:32, :, :, :]
+
+    save_image(fixed_input, '../CW_VAE/MNIST/image_original.png')
+
+    from torch.nn import Conv2d, ConvTranspose3d, Linear, ReLU, Sequential, Sigmoid
+    from torch.nn.modules.pooling import MaxPool2d
+    from torch.distributions.normal import Normal
 
     model = VAE(latent_dim).to(device)
     params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -194,17 +153,11 @@ if __name__ == "__main__":
 
     # *CODE FOR PART 1.1b IN THIS CELL*
     def loss_function_VAE(recon_x, x, mu, logvar, beta):
-        #######################################################################
-        #                       ** START OF YOUR CODE **
-        #######################################################################
         BCE = torch.sum(F.binary_cross_entropy(recon_x.view(-1, 784), x.view(-1, 784),
                                                reduction='none'), dim=1)
         Expected_BCE = torch.mean(BCE)
         Batch_KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / x.size(0)
         loss = Expected_BCE + beta * Batch_KLD
-        #######################################################################
-        #                       ** END OF YOUR CODE **
-        #######################################################################
         return loss, Expected_BCE, Batch_KLD
 
 
@@ -216,9 +169,6 @@ if __name__ == "__main__":
     test_KLD_lst = []
 
     for epoch in range(num_epochs):
-        #######################################################################
-        #                       ** START OF YOUR CODE **
-        #######################################################################
         model.train()
         train_loss = 0
         reconstruction_loss = 0
@@ -267,9 +217,6 @@ if __name__ == "__main__":
         test_BCE_lst.append(test_BCE)
         test_KLD_lst.append(test_KLD)
         print(f"Test: Total Loss: {test_loss}, Reconstruction Loss: {test_BCE} and KLD: {test_KLD}")
-        #######################################################################
-        #                       ** END OF YOUR CODE **
-        #######################################################################
 
     images = []
     for epoch in range(num_epochs):

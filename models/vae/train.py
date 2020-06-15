@@ -110,7 +110,9 @@ if __name__ == "__main__":
         print('epoch [{}/{}], loss:{:.4f}'.format(epoch + 1, num_epochs, train_loss))
         recon = denorm(model(fixed_input.to(device))[0])
         save_image(recon.float(), '../../CW_VAE/MNIST/reconstructed_epoch_{}.png'.format(epoch))
-        print(f"Train: Loss: {train_loss}, Reconstruction Loss: {reconstruction_loss} and KLD Loss: {KLD_loss}")
+        print(f"Train: Loss: {train_loss}, "
+              f"Reconstruction Loss: {reconstruction_loss / len(loader_train)} and "
+              f"KLD Loss: {KLD_loss / len(loader_train)}")
         epoch_loss.append(train_loss)
         reconstruction_list.append(reconstruction_loss)
         KLD_list.append(KLD_loss)
@@ -134,7 +136,9 @@ if __name__ == "__main__":
         test_loss_lst.append(test_loss)
         test_BCE_lst.append(test_BCE)
         test_KLD_lst.append(test_KLD)
-        print(f"Test: Total Loss: {test_loss}, Reconstruction Loss: {test_BCE} and KLD: {test_KLD}")
+        print(f"Test: Total Loss: {test_loss}, "
+              f"Reconstruction Loss: {test_BCE / len(loader_test)} and "
+              f"KLD: {test_KLD / len(loader_test)}")
 
     images = []
     for epoch in range(num_epochs):

@@ -12,3 +12,7 @@ class PrintTensors(torch.nn.Module):
         if self.verbose:
             print(f"Name: {self.name}, Size: {X.size()}")
         return X
+
+
+
+

@@ -1,123 +1,22 @@
-import os
-import numpy as np
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
-from torch.utils.data import sampler
-from torchvision import datasets, transforms
-from torchvision.utils import save_image, make_grid
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-
-from utils.module_helpers import PrintTensors
-
-
-def denorm(x, channels=None, w=None, h=None, resize=False):
-    x = 0.5 * (x + 1)
-    x = x.clamp(0, 1)
-    if resize:
-        if channels is None or w is None or h is None:
-            print('Number of channels, width and height must be provided for resize.')
-        x = x.view(x.size(0), channels, w, h)
-    return x
-
-
-def show(img):
-    if torch.cuda.is_available():
-        img = img.cpu()
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-
-
-class Generator(nn.Module):
-    def __init__(self):
-        super(Generator, self).__init__()
-
-        self.decoder = nn.Sequential(
-            PrintTensors("Input"),
-            nn.ConvTranspose2d(latent_vector_size, 512, 4, 2, 0, bias=False),
-            nn.BatchNorm2d(512),
-            nn.ReLU(True),
-            PrintTensors("1"),
-            nn.ConvTranspose2d(512, 256, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(256),
-            nn.ReLU(True),
-            PrintTensors("2"),
-            nn.ConvTranspose2d(256, 128, 2, 2, 0, bias=False),
-            nn.BatchNorm2d(128),
-            nn.ReLU(True),
-            PrintTensors("3"),
-            nn.ConvTranspose2d(128, 64, 3, 1, 0, bias=False),
-            nn.BatchNorm2d(64),
-            nn.ReLU(True),
-            PrintTensors("4"),
-            nn.ConvTranspose2d(64, 32, 2, 2, 0, bias=False),
-            nn.BatchNorm2d(32),
-            nn.ReLU(True),
-            PrintTensors("5"),
-            nn.ConvTranspose2d(32, 3, 3, 1, 1, bias=False),
-            nn.Tanh(),
-            PrintTensors("Output"),
-        )
-
-    def decode(self, z):
-        x = self.decoder(z)
-        return x
-
-    def forward(self, z):
-        return self.decode(z)
-
-
-class Discriminator(nn.Module):
-    def __init__(self):
-        super(Discriminator, self).__init__()
-
-        self.judge = nn.Sequential(
-            nn.Conv2d(3, 32, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(32, 64, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(64),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(256, 1, 2, 1, 0, bias=False),
-            nn.Sigmoid()
-        )
-
-    def discriminator(self, x):
-        out = self.judge(x)
-        return out
-
-    def forward(self, x):
-        outs = self.discriminator(x)
-        return outs.view(-1, 1).squeeze(1)
-
-
-# custom weights initialization called on netG and netD
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        m.weight.data.normal_(0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
-
-
 if __name__ == "__main__":
+    import os
+    import numpy as np
+    import torch
+    import torch.nn as nn
+    from torch.utils.data import DataLoader
+    from torch.utils.data import sampler
+    from torchvision import datasets, transforms
+    from torchvision.utils import save_image, make_grid
+    import matplotlib.pyplot as plt
+
+    from models.gan.gan import Generator, Discriminator
+    from utils.model_helpers import get_device, weights_init
+    from utils.data_helpers import denorm, show
     import matplotlib.pyplot as plt
     import imageio
 
     # device selection
-    GPU = True
-    device_idx = 0
-    if GPU:
-        device = torch.device("cuda:" + str(device_idx) if torch.cuda.is_available() else "cpu")
-    else:
-        device = torch.device("cpu")
+    device = get_device()
     print(device)
 
     # # We set a random seed to ensure that your results are reproducible.
@@ -159,7 +58,8 @@ if __name__ == "__main__":
     learning_rate = 0.0002
     latent_vector_size = 128
 
-    model_G = Generator().to(device)
+    model_G = Generator(latent_vector_size).to(device)
+
     if use_weights_init:
         model_G.apply(weights_init)
     params_G = sum(p.numel() for p in model_G.parameters() if p.requires_grad)
@@ -249,9 +149,9 @@ if __name__ == "__main__":
             train_loss_G += errG.item()
             optimizerG.step()
 
-        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-              % (epoch, num_epochs, i, len(loader_train),
-                 errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+            print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+                  % (epoch, num_epochs, i, len(loader_train),
+                     errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
         if epoch == 0:
             save_image(denorm(real_cpu[:32].cpu()).float(), './CW_DCGAN/real_samples.png')

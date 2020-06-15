@@ -12,6 +12,7 @@ if __name__ == "__main__":
     from models.vae.vae import ConvVAE
 
     from utils.data_helpers import denorm_for_sigmoid
+    from utils.model_helpers import loss_function_VAE
     import imageio
 
     import sys
@@ -26,8 +27,8 @@ if __name__ == "__main__":
 
     torch.manual_seed(0)
 
-    if not os.path.exists('../CW_VAE/MNIST'):
-        os.makedirs('../CW_VAE/MNIST')
+    if not os.path.exists('../../CW_VAE/MNIST'):
+        os.makedirs('../../CW_VAE/MNIST')
 
     """## Hyper-parameter selection"""
 
@@ -57,9 +58,9 @@ if __name__ == "__main__":
     """## Data loading"""
 
     train_dat = datasets.MNIST(
-        "../data/", train=True, download=True, transform=transform
+        "../../data/", train=True, download=True, transform=transform
     )
-    test_dat = datasets.MNIST("../data/", train=False, transform=transform)
+    test_dat = datasets.MNIST("../../data/", train=False, transform=transform)
 
     loader_train = DataLoader(train_dat, batch_size, shuffle=True)
     loader_test = DataLoader(test_dat, batch_size, shuffle=False)
@@ -67,9 +68,9 @@ if __name__ == "__main__":
     sample_inputs, _ = next(iter(loader_test))
     fixed_input = sample_inputs[:32, :, :, :]
 
-    save_image(fixed_input, '../CW_VAE/MNIST/image_original.png')
+    save_image(fixed_input, '../../CW_VAE/MNIST/image_original.png')
 
-    model = ConvVAE(amp=1).to(device)
+    model = ConvVAE(latent_dim, amp=1).to(device)
     params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Total number of parameters is: {}".format(params))
     print(model)
@@ -108,7 +109,7 @@ if __name__ == "__main__":
         # print out losses and save reconstructions for every epoch
         print('epoch [{}/{}], loss:{:.4f}'.format(epoch + 1, num_epochs, train_loss))
         recon = denorm(model(fixed_input.to(device))[0])
-        save_image(recon.float(), '../CW_VAE/MNIST/reconstructed_epoch_{}.png'.format(epoch))
+        save_image(recon.float(), '../../CW_VAE/MNIST/reconstructed_epoch_{}.png'.format(epoch))
         print(f"Train: Loss: {train_loss}, Reconstruction Loss: {reconstruction_loss} and KLD Loss: {KLD_loss}")
         epoch_loss.append(train_loss)
         reconstruction_list.append(reconstruction_loss)
@@ -137,8 +138,8 @@ if __name__ == "__main__":
 
     images = []
     for epoch in range(num_epochs):
-        images.append(imageio.imread('../CW_VAE/MNIST/reconstructed_epoch_{}.png'.format(epoch)))
-    imageio.mimsave('/VAE_movie.gif', images)
+        images.append(imageio.imread('../../CW_VAE/MNIST/reconstructed_epoch_{}.png'.format(epoch)))
+    imageio.mimsave('../../CW_VAE/VAE_movie.gif', images)
 
     # save the model
-    torch.save(model.state_dict(), '../CW_VAE/MNIST/VAE_model.pth')
+    torch.save(model.state_dict(), '../../CW_VAE/MNIST/VAE_model.pth')

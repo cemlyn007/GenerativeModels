@@ -24,8 +24,8 @@ if __name__ == "__main__":
     #     torch.backends.cudnn.deterministic = True
     torch.manual_seed(0)
 
-    if not os.path.exists('./CW_DCGAN'):
-        os.makedirs('./CW_DCGAN')
+    if not os.path.exists('../../CW_DCGAN'):
+        os.makedirs('../../CW_DCGAN')
 
     """### Data loading"""
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
         transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
     ])
 
-    data_dir = './datasets'
+    data_dir = '../../datasets'
 
     cifar10_train = datasets.CIFAR10(data_dir, train=True, download=True,
                                      transform=transform)
@@ -154,21 +154,21 @@ if __name__ == "__main__":
                      errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
         if epoch == 0:
-            save_image(denorm(real_cpu[:32].cpu()).float(), './CW_DCGAN/real_samples.png')
+            save_image(denorm(real_cpu[:32].cpu()).float(), '../../CW_DCGAN/real_samples.png')
 
         fake = model_G(fixed_noise)
-        save_image(denorm(fake.cpu()[:32]).float(), './CW_DCGAN/fake_samples_epoch_%03d.png' % epoch)
+        save_image(denorm(fake.cpu()[:32]).float(), '../../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch)
         train_losses_D.append(train_loss_D / len(loader_train))
         train_losses_G.append(train_loss_G / len(loader_train))
 
     images = []
     for epoch in range(num_epochs):
-        images.append(imageio.imread('./CW_DCGAN/fake_samples_epoch_%03d.png' % epoch))
-    imageio.mimsave('/GAN_movie.gif', images)
+        images.append(imageio.imread('../../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch))
+    imageio.mimsave('../../CW_DCGAN/GAN_movie.gif', images)
 
     # save losses and models
-    torch.save(model_G.state_dict(), './CW_DCGAN/DCGAN_model_G.pth')
-    torch.save(model_D.state_dict(), './CW_DCGAN/DCGAN_model_D.pth')
+    torch.save(model_G.state_dict(), '../../CW_DCGAN/DCGAN_model_G.pth')
+    torch.save(model_D.state_dict(), '../../CW_DCGAN/DCGAN_model_D.pth')
 
     it = iter(loader_test)
     sample_inputs, _ = next(it)
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     show(img)
 
     # load the model
-    model_G.load_state_dict(torch.load('./CW_DCGAN/DCGAN_model_G.pth'))
+    model_G.load_state_dict(torch.load('../../CW_DCGAN/DCGAN_model_G.pth'))
     input_noise = torch.randn(batch_size, latent_vector_size, 1, 1, device=device)
 
     with torch.no_grad():

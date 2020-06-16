@@ -55,8 +55,8 @@ if __name__ == "__main__":
     use_weights_init = True
 
     num_epochs = 100
-    learning_rate = 0.0002
-    latent_vector_size = 128
+    learning_rate = 2e-4
+    latent_vector_size = 256
 
     model_G = Generator(latent_vector_size).to(device)
 

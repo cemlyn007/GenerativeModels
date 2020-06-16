@@ -35,6 +35,7 @@ if __name__ == "__main__":
     ### Choose the number of epochs, the learning rate and the batch size
     num_epochs = 20
     learning_rate = 5e-4  # 1e-3
+    weight_decay = 0.01
     batch_size = 512
     ### Choose a value for the size of the latent space
     latent_dim = 15
@@ -68,12 +69,12 @@ if __name__ == "__main__":
 
     save_image(fixed_input, '../../CW_VAE/MNIST/image_original.png')
 
-    model = vae.LinearVAE(latent_dim).to(device)
+    model = vae.ConvVAE(latent_dim).to(device)
     params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Total number of parameters is: {}".format(params))
     print(model)
     # optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     loss_function = loss_function_VAE
 
@@ -91,6 +92,7 @@ if __name__ == "__main__":
         KLD_loss = 0
 
         for batch_idx, data in enumerate(loader_train):
+            optimizer.zero_grad()
             img, _ = data
             img = img.to(device)
             optimizer.zero_grad()

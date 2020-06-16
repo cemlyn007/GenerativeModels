@@ -9,7 +9,7 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from torchvision import datasets, transforms
     from torchvision.utils import save_image
-    from models.vae.vae import ConvVAE
+    from models.vae import vae
 
     from utils.data_helpers import denorm_for_sigmoid
     from utils.model_helpers import loss_function_VAE
@@ -32,19 +32,17 @@ if __name__ == "__main__":
 
     """## Hyper-parameter selection"""
 
-    # *CODE FOR PART 1.1 IN THIS CELL*
-
     ### Choose the number of epochs, the learning rate and the batch size
     num_epochs = 20
-    learning_rate = 5e-5  # 1e-3
+    learning_rate = 5e-4  # 1e-3
     batch_size = 512
     ### Choose a value for the size of the latent space
-    latent_dim = 10
+    latent_dim = 15
 
     ###
 
     # Define here the any extra hyperparameters you used.
-    beta = 2  # .75 WAS 0.5
+    beta = 0.5  # 2  # .75 WAS 0.5
     ###
 
     # Modify this line if you need to do any input transformations (optional).
@@ -70,7 +68,7 @@ if __name__ == "__main__":
 
     save_image(fixed_input, '../../CW_VAE/MNIST/image_original.png')
 
-    model = ConvVAE(latent_dim, amp=1).to(device)
+    model = vae.LinearVAE(latent_dim).to(device)
     params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print("Total number of parameters is: {}".format(params))
     print(model)
@@ -107,10 +105,10 @@ if __name__ == "__main__":
             # print(f"Debug Train: Avg Loss: {loss.item()}, Reconstruction Loss: {BCE.item()} and KLD: {KLD.item()}")
             optimizer.step()
         # print out losses and save reconstructions for every epoch
-        print('epoch [{}/{}], loss:{:.4f}'.format(epoch + 1, num_epochs, train_loss))
+        print('epoch [{}/{}], loss:{:.4f}'.format(epoch + 1, num_epochs, train_loss / len(loader_train)))
         recon = denorm(model(fixed_input.to(device))[0])
-        save_image(recon.float(), '../../CW_VAE/MNIST/reconstructed_epoch_{}.png'.format(epoch))
-        print(f"Train: Loss: {train_loss}, "
+        save_image(recon.float(), f'../../CW_VAE/MNIST/reconstructed_epoch_{epoch}.png')
+        print(f"Train: Loss: {train_loss / len(loader_train)}, "
               f"Reconstruction Loss: {reconstruction_loss / len(loader_train)} and "
               f"KLD Loss: {KLD_loss / len(loader_train)}")
         epoch_loss.append(train_loss)
@@ -125,7 +123,7 @@ if __name__ == "__main__":
             for img, _ in loader_test:
                 img = img.to(device)
                 recon_batch, mu, logvar = model(img)
-                loss, BCE, KLD = loss_function_VAE(recon_batch, img, mu, logvar, beta)
+                loss, BCE, KLD = loss_function(recon_batch, img, mu, logvar, beta)
                 test_loss += loss
                 test_BCE += BCE
                 test_KLD += KLD
@@ -136,7 +134,7 @@ if __name__ == "__main__":
         test_loss_lst.append(test_loss)
         test_BCE_lst.append(test_BCE)
         test_KLD_lst.append(test_KLD)
-        print(f"Test: Total Loss: {test_loss}, "
+        print(f"Test: Total Loss: {test_loss / len(loader_test)}, "
               f"Reconstruction Loss: {test_BCE / len(loader_test)} and "
               f"KLD: {test_KLD / len(loader_test)}")
 

@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
 
 
 # Modify the denorm function in case you need to do any output transformation when visualizing your images

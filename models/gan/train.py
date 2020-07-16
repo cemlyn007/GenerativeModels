@@ -12,56 +12,62 @@ if __name__ == "__main__":
     from models.gan.gan import Generator, Discriminator
     from utils.model_helpers import get_device, weights_init
     from utils.data_helpers import denorm, show
-    import matplotlib.pyplot as plt
     import imageio
+    import argparse
+
+
+    def get_args():
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--batch_size", type=int, default=64)
+        parser.add_argument("--lr_G", type=float, default=5e-4)
+        parser.add_argument("--lr_D", type=float, default=5e-4)
+        parser.add_argument("--latent_dim", type=int, default=64)
+        parser.add_argument("--n_epochs", type=int, default=100)
+        parser.add_argument("--NUM_TRAIN", description="Must be less than 50000", type=int, default=49000)
+
+        parser.add_argument("--data_dir", description="Must be less than 50000", type=str, default='datasets')
+        parser.add_argument("--save_dir", description="Must be less than 50000", type=str, default='CW_DCGAN')
+        return
+
+
+    args = get_args()
 
     # device selection
     device = get_device()
     print(device)
 
-    # # We set a random seed to ensure that your results are reproducible.
-    # if torch.cuda.is_available():
-    #     torch.backends.cudnn.deterministic = True
     torch.manual_seed(0)
 
-    if not os.path.exists('../../CW_DCGAN'):
-        os.makedirs('../../CW_DCGAN')
+    if not os.path.exists(args.save_dir):
+        os.makedirs(args.save_dir)
 
     """### Data loading"""
-
-    batch_size = 512  # change that 256
-    NUM_TRAIN = 49000
 
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
     ])
 
-    data_dir = '../../datasets'
-
-    cifar10_train = datasets.CIFAR10(data_dir, train=True, download=True,
+    cifar10_train = datasets.CIFAR10(args.data_dir, train=True, download=True,
                                      transform=transform)
-    cifar10_val = datasets.CIFAR10(data_dir, train=True, download=True,
+    cifar10_val = datasets.CIFAR10(args.data_dir, train=True, download=True,
                                    transform=transform)
-    cifar10_test = datasets.CIFAR10(data_dir, train=False, download=True,
+    cifar10_test = datasets.CIFAR10(args.data_dir, train=False, download=True,
                                     transform=transform)
 
-    loader_train = DataLoader(cifar10_train, batch_size=batch_size,
-                              sampler=sampler.SubsetRandomSampler(range(NUM_TRAIN)))
-    loader_val = DataLoader(cifar10_val, batch_size=batch_size,
-                            sampler=sampler.SubsetRandomSampler(range(NUM_TRAIN, 50000)))
-    loader_test = DataLoader(cifar10_test, batch_size=batch_size)
+    loader_train = DataLoader(cifar10_train, batch_size=args.batch_size,
+                              sampler=sampler.SubsetRandomSampler(range(args.NUM_TRAIN)), num_workers=4)
+    loader_val = DataLoader(cifar10_val, batch_size=args.batch_size,
+                            sampler=sampler.SubsetRandomSampler(range(args.NUM_TRAIN, 50000)), num_workers=4)
+    loader_test = DataLoader(cifar10_test, batch_size=args.batch_size, num_workers=4)
 
     use_weights_init = True
 
-    num_epochs = 100
-    learning_rate = 2e-4
-    latent_vector_size = 256
-
-    model_G = Generator(latent_vector_size).to(device)
+    model_G = Generator(args.latent_dim).to(device)
 
     if use_weights_init:
         model_G.apply(weights_init)
+
     params_G = sum(p.numel() for p in model_G.parameters() if p.requires_grad)
     print("Total number of parameters in Generator is: {}".format(params_G))
     print(model_G)
@@ -89,13 +95,15 @@ if __name__ == "__main__":
 
     # setup optimizer
     # You are free to add a scheduler or change the optimizer if you want. We chose one for you for simplicity.
-    beta1 = 0.45
-    optimizerD = torch.optim.Adam(model_D.parameters(), lr=learning_rate, betas=(beta1, 0.999))
-    optimizerG = torch.optim.Adam(model_G.parameters(), lr=learning_rate, betas=(beta1, 0.999))
+    optimizerD = torch.optim.Adam(model_D.parameters(), lr=args.lr_D, betas=(0.45, 0.999))
+    optimizerG = torch.optim.Adam(model_G.parameters(), lr=args.lr_G, betas=(0.45, 0.999))
+
+    schedD = torch.optim.lr_scheduler.CosineAnnealingLR(optimizerD, T_max=15, eta_min=1e-8)
+    schedG = torch.optim.lr_scheduler.CosineAnnealingLR(optimizerG, T_max=15, eta_min=1e-8)
 
     """### Define fixed input vectors to monitor training and mode collapse."""
 
-    fixed_noise = torch.randn(batch_size, latent_vector_size, 1, 1, device=device)
+    fixed_noise = torch.randn(args.batch_size, args.latent_dim, 1, 1, device=device)
     real_label = 1
     fake_label = 0
 
@@ -105,7 +113,10 @@ if __name__ == "__main__":
     train_losses_G = []
     train_losses_D = []
 
-    for epoch in range(num_epochs):
+    for epoch in range(args.n_epochs):
+
+        model_D.train()
+        model_G.train()
 
         train_loss_D = 0
         train_loss_G = 0
@@ -125,7 +136,7 @@ if __name__ == "__main__":
             D_x = output.mean().item()
 
             # train with fake
-            noise = torch.randn(batch_size, latent_vector_size, 1, 1, device=device)
+            noise = torch.randn(batch_size, args.latent_dim, 1, 1, device=device)
             fake = model_G(noise)
             label.fill_(fake_label)
             output = model_D(fake.detach())
@@ -150,25 +161,35 @@ if __name__ == "__main__":
             optimizerG.step()
 
             print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-                  % (epoch, num_epochs, i, len(loader_train),
+                  % (epoch, args.n_epochs, i, len(loader_train),
                      errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
 
-        if epoch == 0:
-            save_image(denorm(real_cpu[:32].cpu()).float(), '../../CW_DCGAN/real_samples.png')
+        schedD.step()
+        schedG.step()
 
-        fake = model_G(fixed_noise)
-        save_image(denorm(fake.cpu()[:32]).float(), '../../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch)
+        if epoch == 0:
+            save_image(denorm(real_cpu[:32].cpu()).float(), os.path.join(args.save_dir, 'real_samples.png'))
+
+        model_D.eval()
+        model_G.eval()
+        with torch.no_grad():
+            fake = model_G(fixed_noise)
+            image_fp = os.path.join(args.save_dir, 'fake_samples_epoch_%03d.png' % epoch)
+            save_image(denorm(fake.cpu()[:32]).float(), image_fp)
+
         train_losses_D.append(train_loss_D / len(loader_train))
         train_losses_G.append(train_loss_G / len(loader_train))
 
     images = []
-    for epoch in range(num_epochs):
-        images.append(imageio.imread('../../CW_DCGAN/fake_samples_epoch_%03d.png' % epoch))
-    imageio.mimsave('../../CW_DCGAN/GAN_movie.gif', images)
+    for epoch in range(args.n_epochs):
+        image_fp = os.path.join(args.save_dir, 'fake_samples_epoch_%03d.png' % epoch)
+        images.append(imageio.imread(image_fp))
+    gif_fp = os.path.join(args.save_dir, 'GAN_movie.gif')
+    imageio.mimsave(gif_fp, images)
 
     # save losses and models
-    torch.save(model_G.state_dict(), '../../CW_DCGAN/DCGAN_model_G.pth')
-    torch.save(model_D.state_dict(), '../../CW_DCGAN/DCGAN_model_D.pth')
+    torch.save(model_G.state_dict(), os.path.join(args.save_dir, 'DCGAN_model_G.pth'))
+    torch.save(model_D.state_dict(), os.path.join(args.save_dir, 'DCGAN_model_D.pth'))
 
     it = iter(loader_test)
     sample_inputs, _ = next(it)
@@ -183,17 +204,16 @@ if __name__ == "__main__":
     show(img)
 
     # load the model
-    model_G.load_state_dict(torch.load('../../CW_DCGAN/DCGAN_model_G.pth'))
-    input_noise = torch.randn(batch_size, latent_vector_size, 1, 1, device=device)
+    input_noise = torch.randn(args.batch_size, args.latent_dim, 1, 1, device=device)
 
     with torch.no_grad():
         fig = plt.figure()
-    fig.set_size_inches(12, 24)
-    # visualize the generated images
-    generated = model_G(input_noise).cpu()
-    generated = make_grid(denorm(generated)[:32], nrow=8, padding=2, normalize=False,
-                          range=None, scale_each=False, pad_value=0)
-    show(generated)
+        fig.set_size_inches(12, 24)
+        # visualize the generated images
+        generated = model_G(input_noise).cpu()
+        generated = make_grid(denorm(generated)[:32], nrow=8, padding=2, normalize=False,
+                              range=None, scale_each=False, pad_value=0)
+        show(generated)
 
     fig = plt.figure()
     fig.set_size_inches(12, 9)

@@ -36,7 +36,7 @@ if __name__ == "__main__":
     num_epochs = 20
     learning_rate = 5e-4  # 1e-3
     weight_decay = 0.01
-    batch_size = 512
+    batch_size = 256
     ### Choose a value for the size of the latent space
     latent_dim = 15
 
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     # Modify this line if you need to do any input transformations (optional).
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize((0.,), (1.,)),
+        # transforms.Normalize((0.,), (1.,)),
     ])
 
     denorm = denorm_for_sigmoid
@@ -94,6 +94,7 @@ if __name__ == "__main__":
         for batch_idx, data in enumerate(loader_train):
             optimizer.zero_grad()
             img, _ = data
+
             img = img.to(device)
             optimizer.zero_grad()
             # forward

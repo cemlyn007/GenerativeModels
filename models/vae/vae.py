@@ -1,9 +1,5 @@
-import sys
-
 import torch
 import torch.nn as nn
-
-print(sys.path)
 
 from utils.module_helpers import PrintTensors
 

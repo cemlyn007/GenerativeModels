@@ -23,11 +23,12 @@ if __name__ == "__main__":
         parser.add_argument("--lr_D", type=float, default=5e-4)
         parser.add_argument("--latent_dim", type=int, default=64)
         parser.add_argument("--n_epochs", type=int, default=100)
-        parser.add_argument("--NUM_TRAIN", description="Must be less than 50000", type=int, default=49000)
+        parser.add_argument("--NUM_TRAIN", help="Must be less than 50000", type=int, default=49000)
 
-        parser.add_argument("--data_dir", description="Must be less than 50000", type=str, default='datasets')
-        parser.add_argument("--save_dir", description="Must be less than 50000", type=str, default='CW_DCGAN')
-        return
+        parser.add_argument("--data_dir", help="Must be less than 50000", type=str, default='datasets')
+        parser.add_argument("--save_dir", help="Must be less than 50000", type=str, default='DCGAN')
+
+        return parser.parse_args()
 
 
     args = get_args()
@@ -40,6 +41,9 @@ if __name__ == "__main__":
 
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
+
+    if not os.path.exists(os.path.join(args.save_dir, 'images')):
+        os.makedirs(os.path.join(args.save_dir, 'images'))
 
     """### Data loading"""
 
@@ -168,13 +172,13 @@ if __name__ == "__main__":
         schedG.step()
 
         if epoch == 0:
-            save_image(denorm(real_cpu[:32].cpu()).float(), os.path.join(args.save_dir, 'real_samples.png'))
+            save_image(denorm(real_cpu[:32].cpu()).float(), os.path.join(args.save_dir, 'images', 'real_samples.png'))
 
         model_D.eval()
         model_G.eval()
         with torch.no_grad():
             fake = model_G(fixed_noise)
-            image_fp = os.path.join(args.save_dir, 'fake_samples_epoch_%03d.png' % epoch)
+            image_fp = os.path.join(args.save_dir, 'images', 'fake_samples_epoch_%03d.png' % epoch)
             save_image(denorm(fake.cpu()[:32]).float(), image_fp)
 
         train_losses_D.append(train_loss_D / len(loader_train))
@@ -182,7 +186,7 @@ if __name__ == "__main__":
 
     images = []
     for epoch in range(args.n_epochs):
-        image_fp = os.path.join(args.save_dir, 'fake_samples_epoch_%03d.png' % epoch)
+        image_fp = os.path.join(args.save_dir, 'images', 'fake_samples_epoch_%03d.png' % epoch)
         images.append(imageio.imread(image_fp))
     gif_fp = os.path.join(args.save_dir, 'GAN_movie.gif')
     imageio.mimsave(gif_fp, images)

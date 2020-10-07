@@ -10,16 +10,16 @@ class LinearVAE(nn.Module):
 
         # Encoding Material
         self.encoder = nn.Sequential(
-            PrintTensors("Input"),
+            # PrintTensors("Input"),
             nn.Linear(784, 980),
             nn.ReLU(inplace=True),
-            PrintTensors("1"),
+            # PrintTensors("1"),
             nn.Linear(980, 1024),
             nn.ReLU(inplace=True),
-            PrintTensors("2"),
+            # PrintTensors("2"),
             nn.Linear(1024, 1280),
             nn.ReLU(inplace=True),
-            PrintTensors("Encoded"),
+            # PrintTensors("Encoded"),
         )
 
         self.en_mu_lin = nn.Linear(1280, latent_dim)
@@ -27,16 +27,16 @@ class LinearVAE(nn.Module):
 
         # Decoding Material
         self.decoder = nn.Sequential(
-            PrintTensors("Input"),
+            # PrintTensors("Input"),
             nn.Linear(latent_dim, 1280),
             nn.ReLU(inplace=True),
-            PrintTensors("1"),
+            # PrintTensors("1"),
             nn.Linear(1280, 1024),
             nn.ReLU(inplace=True),
-            PrintTensors("2"),
+            # PrintTensors("2"),
             nn.Linear(1024, 784),
             nn.Sigmoid(),
-            PrintTensors("Output"),
+            # PrintTensors("Output"),
         )
 
     def encode(self, x):
@@ -64,45 +64,45 @@ class ConvVAE(nn.Module):
 
         # Encoding Material
         self.encoder = nn.Sequential(
-            PrintTensors("Input"),
+            # PrintTensors("Input"),
             nn.Conv2d(in_channels=1, out_channels=256, kernel_size=3, stride=2),
             nn.ReLU(inplace=True),
-            PrintTensors("1"),
+            # PrintTensors("1"),
             nn.Conv2d(in_channels=256, out_channels=128, kernel_size=3, stride=2),
             nn.ReLU(inplace=True),
-            PrintTensors("2"),
+            # PrintTensors("2"),
             nn.Conv2d(in_channels=128, out_channels=96, kernel_size=3, stride=2),
             nn.ReLU(inplace=True),
-            PrintTensors("3"),
+            # PrintTensors("3"),
             nn.Conv2d(in_channels=96, out_channels=64, kernel_size=2, stride=1),
             nn.ReLU(inplace=True),
-            PrintTensors("Encoded"),
+            # PrintTensors("Encoded"),
         )
 
-        self.en_mu_lin = nn.Linear(64, latent_dim)
+        self.en_mu_lin = nn.Linear(64, latent_dim)  # TODO: Is there a way to remove Linear completely?
         self.en_logvar_lin = nn.Linear(64, latent_dim)
 
         # Decoding Material
         self.decoder = nn.Sequential(
-            PrintTensors("Input"),
+            # PrintTensors("Input"),
             nn.ConvTranspose2d(in_channels=latent_dim, out_channels=256, kernel_size=3, stride=1),
             nn.ReLU(inplace=True),
-            PrintTensors("1"),
+            # PrintTensors("1"),
             nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=3, stride=2),
             nn.ReLU(inplace=True),
-            PrintTensors("2"),
+            # PrintTensors("2"),
             nn.ConvTranspose2d(in_channels=128, out_channels=96, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.ReLU(inplace=True),
-            PrintTensors("3"),
+            # PrintTensors("3"),
             nn.ConvTranspose2d(in_channels=96, out_channels=64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(inplace=True),
-            PrintTensors("4"),
+            # PrintTensors("4"),
             nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.ReLU(inplace=True),
-            PrintTensors("5"),
+            # PrintTensors("5"),
             nn.ConvTranspose2d(in_channels=64, out_channels=1, kernel_size=3, stride=1, padding=1),
             nn.Sigmoid(),
-            PrintTensors("Output"),
+            # PrintTensors("Output"),
         )
 
     def encode(self, x):

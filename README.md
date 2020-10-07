@@ -1,2 +1,6 @@
 # GenerativeModels
-Just a selection of toy examples that I've played with.
+Imperial Coursework.
+
+Implementations:
+* Variational Autoencoder applied to MNIST
+* Deep Convolutional Autoencoder applied to CIFAR

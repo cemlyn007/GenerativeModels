@@ -8,8 +8,8 @@ if __name__ == "__main__":
     from torchvision import datasets, transforms
     from torchvision.utils import save_image, make_grid
     import matplotlib.pyplot as plt
-
-    from models.gan.gan import Generator, Discriminator
+    from models.gan.discriminators import Discriminator
+    from models.gan.generators import CTGenerator
     from utils.model_helpers import get_device, weights_init
     from utils.data_helpers import denorm, show
     import imageio
@@ -21,7 +21,7 @@ if __name__ == "__main__":
         parser.add_argument("--batch_size", type=int, default=64)
         parser.add_argument("--lr_G", type=float, default=5e-4)
         parser.add_argument("--lr_D", type=float, default=5e-4)
-        parser.add_argument("--latent_dim", type=int, default=64)
+        parser.add_argument("--latent_dim", type=int, default=256)
         parser.add_argument("--n_epochs", type=int, default=100)
         parser.add_argument("--NUM_TRAIN", help="Must be less than 50000", type=int, default=49000)
 
@@ -32,6 +32,7 @@ if __name__ == "__main__":
 
 
     args = get_args()
+    num_workers = max(0, os.cpu_count() - 2)
 
     # device selection
     device = get_device()
@@ -52,22 +53,19 @@ if __name__ == "__main__":
         transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
     ])
 
-    cifar10_train = datasets.CIFAR10(args.data_dir, train=True, download=True,
-                                     transform=transform)
-    cifar10_val = datasets.CIFAR10(args.data_dir, train=True, download=True,
-                                   transform=transform)
-    cifar10_test = datasets.CIFAR10(args.data_dir, train=False, download=True,
-                                    transform=transform)
+    cifar10_train = datasets.CIFAR10(args.data_dir, train=True, download=True, transform=transform)
+    cifar10_val = datasets.CIFAR10(args.data_dir, train=True, download=True, transform=transform)
+    cifar10_test = datasets.CIFAR10(args.data_dir, train=False, download=True, transform=transform)
 
     loader_train = DataLoader(cifar10_train, batch_size=args.batch_size,
-                              sampler=sampler.SubsetRandomSampler(range(args.NUM_TRAIN)), num_workers=4)
+                              sampler=sampler.SubsetRandomSampler(range(args.NUM_TRAIN)), num_workers=num_workers)
     loader_val = DataLoader(cifar10_val, batch_size=args.batch_size,
-                            sampler=sampler.SubsetRandomSampler(range(args.NUM_TRAIN, 50000)), num_workers=4)
-    loader_test = DataLoader(cifar10_test, batch_size=args.batch_size, num_workers=4)
+                            sampler=sampler.SubsetRandomSampler(range(args.NUM_TRAIN, 50000)), num_workers=num_workers)
+    loader_test = DataLoader(cifar10_test, batch_size=args.batch_size, num_workers=num_workers)
 
     use_weights_init = True
 
-    model_G = Generator(args.latent_dim).to(device)
+    model_G = CTGenerator(args.latent_dim).to(device)
 
     if use_weights_init:
         model_G.apply(weights_init)
@@ -87,7 +85,7 @@ if __name__ == "__main__":
 
     print("Total number of parameters is: {}".format(params_G + params_D))
 
-    criterion = nn.BCELoss(reduction='mean')
+    criterion = nn.BCELoss(reduction='sum')
 
 
     def loss_function(out, label):
@@ -132,7 +130,7 @@ if __name__ == "__main__":
             model_D.zero_grad()
             real_cpu = data[0].to(device)
             batch_size = real_cpu.size(0)
-            label = torch.full((batch_size,), real_label, device=device)
+            label = torch.full((batch_size,), real_label, device=device, dtype=torch.float32)
 
             output = model_D(real_cpu)
             errD_real = loss_function(output, label)

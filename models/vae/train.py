@@ -6,12 +6,9 @@ if __name__ == "__main__":
     import imageio
     from torchvision.utils import save_image
     from models.vae import vae
-
     from utils.data_helpers import denorm_for_sigmoid
-    from utils.model_helpers import loss_function_VAE
-    import imageio
+    from utils.model_helpers import loss_function_VAE, get_device
     import argparse
-    from utils.model_helpers import get_device
 
 
     def get_args():
@@ -146,4 +143,4 @@ if __name__ == "__main__":
     imageio.mimsave(os.path.join(args.save_dir, 'VAE_movie.gif'), images)
 
     # save the model
-    torch.save(model.state_dict(), os.path.join(args.save_dir, '/VAE_model.pth'))
+    torch.save(model.state_dict(), os.path.join(args.save_dir, 'VAE_model.pth'))
